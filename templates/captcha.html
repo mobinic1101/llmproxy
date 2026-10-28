@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Document</title>
+		<style>
+			.maincontainer{
+				display: flex;
+				justify-content: space-evenly;
+				padding: 5%;
+			}
+			.left{
+				width: 50%;
+			}
+			img {
+				max-width: 100%;
+				height: auto;
+			}
+			.right{
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+			}
+			.buttons{
+				display: grid;
+				grid-template-columns: repeat(3, 1fr);
+				grid-template-rows: repeat(3, 1fr);
+			}
+			.button{
+				width: 80px;
+				height: 80px;
+			}
+			.clicked{
+				background-color: gray;
+			}
+			#submit{
+				width: 240px;
+				height: 50px;
+				margin-top: 5px;
+			}
+			#captcha-status{
+				margin-top: 10px;
+				font-weight: bold;
+				min-height: 1.2em;
+			}
+			.captcha-success{
+				color: green;
+			}
+			.captcha-failure{
+				color: red;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="maincontainer">
+
+			<!-- left side -->
+			<div class="left">
+				<h1>Captcha Required</h1>
+				<span>please submit the answer to the captcha image below using the input buttons on the right in order to continue</span>
+				<hr>
+				<img id="captcha-image" src="{{ url_for('captcha_image') }}" alt="captcha image.">
+				<div id="captcha-status"></div>
+			</div>
+
+			<!-- right side -->
+			<div class="right">
+				<div class="buttons">
+					<button class="button">1</button>
+					<button class="button">2</button>
+					<button class="button">3</button>
+					<button class="button">4</button>
+					<button class="button">5</button>
+					<button class="button">6</button>
+					<button class="button">7</button>
+					<button class="button">8</button>
+					<button class="button">9</button>
+				</div>
+				<button type="submit" id="submit">Submit</button>
+			</div>
+		</div>
+
+		<script>
+			let buttons = document.getElementsByClassName("button");
+			for (let i = 0; i < buttons.length; i++) {
+				const button = buttons[i];
+				button.addEventListener("click", (e) => {
+					button.classList.toggle("clicked");
+				});
+			}
+
+			let captchaAnswer = [];
+			const status = document.getElementById("captcha-status");
+			const captchaImage = document.getElementById("captcha-image");
+			const submitButton = document.getElementById("submit");
+
+			submitButton.addEventListener("click", function(e) {
+				e.preventDefault();
+				captchaAnswer = [];
+				let buttons = document.getElementsByClassName("button");
+				for (const button of buttons) {
+					if (button.classList.contains("clicked")) {
+						captchaAnswer.push(Number(button.innerHTML) - 1);
+						button.classList.toggle("clicked");
+					}
+				}
+				console.log(captchaAnswer);
+				status.textContent = "";
+				status.className = "";
+
+				fetch("/captcha-answer", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json"
+					},
+					body: JSON.stringify({captcha_answer: captchaAnswer})
+				})
+				.then((response) => {
+					if (!response.ok) {
+						throw new Error(`HTTP ${response.status}`);
+					}
+					return response.json();
+				})
+				.then((value) => {
+					console.log(value);
+					if (value.result === "success") {
+						status.textContent = "Captcha solved successfully! You can close this browser tab`.";
+						status.className = "captcha-success";
+						submitButton.disabled = true;
+					} else {
+						status.textContent = "Captcha failed. Please try again.";
+						status.className = "captcha-failure";
+						captchaImage.src = "/captcha_image?t=" + Date.now();
+					}
+				})
+				.catch((error) => {
+					console.error(error);
+					status.textContent = "Error submitting captcha answer.";
+					status.className = "captcha-failure";
+				});
+			});
+		</script>
+	</body>
+</html>
